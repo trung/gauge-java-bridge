@@ -76,7 +76,7 @@ public class GaugeBridgeRuntime {
 
     @PostConstruct
     public void start() {
-        logger.info("Scanning proxy steps");
+        long startTime = System.currentTimeMillis();
         ClasspathScanner classpathScanner = new ClasspathScanner();
         ProxyStepsScanner stepsScanner = new ProxyStepsScanner();
         classpathScanner.scan(stepsScanner);
@@ -111,6 +111,7 @@ public class GaugeBridgeRuntime {
                 throw new RuntimeException("[" + lr + "] BeforeSuite fails");
             }
         }
+        logger.info("Started BridgeRuntime in {} seconds", (System.currentTimeMillis() - startTime) / 1000);
     }
 
     @PreDestroy
@@ -182,10 +183,12 @@ public class GaugeBridgeRuntime {
 
                 Messages.Message response = responseQueue.take();
                 ensureMessageType(response.getMessageType()).is(Messages.Message.MessageType.StepValidateResponse);
-                return response.getStepValidateResponse().getIsValid();
+                if (!response.getStepValidateResponse().getIsValid()) {
+                    throw new RuntimeException(response.getStepValidateResponse().getErrorMessage() + "\n" + response.getStepValidateResponse().getSuggestion());
+                }
             }
-        } catch (Exception e) {
-            throw new RuntimeException("validation fails", e);
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException("validation error", e);
         }
 
         return true;
@@ -243,7 +246,7 @@ public class GaugeBridgeRuntime {
             if (runner.waitFor() != 0) {
                 throw new RuntimeException("command run failed");
             }
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException("Unable to execute command " + cmd, e);
         }
     }

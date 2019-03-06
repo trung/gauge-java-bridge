@@ -22,6 +22,8 @@ package org.mdkt.gauge.bridge;
 import com.thoughtworks.gauge.Step;
 import com.thoughtworks.gauge.scan.IScanner;
 import org.reflections.Reflections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
  * This is to re-scan steps annotated with an extended language support
  */
 public class ProxyStepsScanner implements IScanner {
+    private static final Logger logger = LoggerFactory.getLogger(ProxyStepsScanner.class);
     private Map<LanguageRunner, List<String>> stepNames;
 
     public ProxyStepsScanner() {
@@ -44,14 +47,18 @@ public class ProxyStepsScanner implements IScanner {
             Step a = m.getAnnotation(Step.class);
             ProxyStep ps = m.getAnnotation(ProxyStep.class);
             if (a != null) {
-                List<String> steps = stepNames.get(ps.value());
+                LanguageRunner lr = ps.value();
+                List<String> steps = stepNames.get(lr);
+                String[] stepValues = a.value();
+                logger.debug("Scan: {} proxy to {}", stepValues, lr);
                 if (steps == null) {
                     steps = new ArrayList<>();
-                    stepNames.put(ps.value(), steps);
+                    stepNames.put(lr, steps);
                 }
-                steps.addAll(Arrays.stream(a.value()).collect(Collectors.toList()));
+                steps.addAll(Arrays.stream(stepValues).collect(Collectors.toList()));
             }
         }
+        logger.debug("Scan completed. {}", stepNames);
     }
 
     public List<String> getStepNames(LanguageRunner lr) {
